@@ -1,0 +1,17 @@
+---
+title: "Generating random numbers with randomizer"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Generating random numbers with randomizer}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+library(randomizer)
+library(ggplot2)
+
+set.seed(123)
+random_data <- random_numbers(100, 50, 50)
+qplot(random_data, bins = 30, main = "Histogram of Random Numbers")
+```

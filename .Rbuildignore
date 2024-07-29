@@ -1,2 +1,8 @@
 ^randomizer\.Rproj$
 ^\.Rproj\.user$
+^LICENSE\.md$
+^data-raw$
+^\.github$
+^doc$
+^Meta$
+^CODE_OF_CONDUCT\.md$
