@@ -1,0 +1,296 @@
+---
+title: "Creating packages really quickly with usethis (and devtools)"
+output: html_document
+date: "2024-07-28"
+---
+
+## Introduction
+
+The usethis package streamlines the setup and maintenance of R packages by automating repetitive tasks. This cheatsheet demonstrates how to use usethis and related packages to create a base package, develop functions, write function tests, add licenses, configure the package for GitHub, and manage dependencies.
+
+## Setup
+
+```{r}
+# Install the necessary packages
+install.packages("usethis")
+install.packages("devtools")
+```
+
+## 1: Initialise the package and git
+
+```{r}
+# To create a new package, use the `create_package()` function. This will create a new directory with the basic structure of an R package.
+# usethis::create_package("randomizer")
+
+# The use_git() function initializes a Git repository in your package directory and adds common files to `.gitignore`.
+usethis::use_git()
+
+# You may need to create a GitHub token using create_github_token()
+# usethis::create_github_token()
+
+# To connect your package to a GitHub repository, use the `use_github()` function. This will create a new GitHub repository and link it to your local Git repository.
+usethis::use_github()
+
+```
+## 2: Creating key files
+
+### 2.a: readme
+
+```{r}
+
+# This use_description() function creates a `DESCRIPTION` file for your package which contains metadata about your package, such as its title, description, version, author, and dependencies.
+usethis::use_description(fields = list(
+  Description = "An example package for generating random numbers.",
+  
+  `Authors@R` = c(
+    person(given = "Dylan", family = "Carbone", email = "dylcar@ceh.ac.uk", role = c("aut", "cre", "cph")),
+    person(given = "Alice", family = "Smith", email = "alice.smith@example.com", role = c("aut")),
+    person(given = "Bob", family = "Johnson", email = "bob.johnson@example.com", role = c("ctb")),
+    person(given = "Carol", family = "Williams", email = "carol.williams@example.com", role = c("ctb"))
+  )
+))
+
+# The use_mit_license() function adds an MIT license to your package. It creates a `LICENSE` file and populates it with the MIT license text.
+usethis::use_mit_license("Dylan Carbone")
+
+```
+
+### 2.b: functions
+
+```{r}
+
+# The `use_r()` function creates a new R script for your function in the `R` directory of your package.
+usethis::use_r("random_numbers")
+
+# We'll write an example function with roxygen documentation
+writeLines({'
+#\' Generate Random Numbers
+#\'
+#\' This function generates a specified number of random numbers within a given range.
+#\' It uses `dplyr::filter` to ensure the numbers are within the specified range.
+#\'
+#\' @param n A numeric value indicating the number of random numbers to generate.
+#\' @param min A numeric value indicating the minimum value of the range.
+#\' @param max A numeric value indicating the maximum value of the range.
+#\' @return A numeric vector of random numbers.
+#\' @import dplyr
+#\' @examples
+#\' random_numbers(5, 1, 10)
+#\' random_numbers(10, 0, 1)
+#\' @export
+random_numbers <- function(n, min, max) {
+  if (!is.numeric(n) || !is.numeric(min) || !is.numeric(max)) {
+    stop("All arguments must be numeric values.")
+  }
+  if (n <= 0) {
+    stop("The number of random numbers to generate must be positive.")
+  }
+  if (min > max) {
+    stop("The minimum value must be less than or equal to the maximum value.")
+  }
+  
+  # Generate random numbers
+  random_numbers <- runif(n, min, max)
+  
+  # Create a data frame
+  random_df <- data.frame(numbers = random_numbers)
+  
+  # Use dplyr::filter to keep numbers within the range (though they already are)
+  filtered_df <- dplyr::filter(random_df, numbers >= min & numbers <= max)
+  
+  # Return the filtered numbers as a vector
+  return(filtered_df$numbers)
+}
+'}, "R/random_numbers.R")
+
+```
+
+### 2.c: vignettes
+
+```{r}
+# The use_vignette() function writes a vignette to be filled with detailed examples and explanations of how to use your package.
+usethis::use_vignette("vignette", "Generating random numbers with randomizer")
+
+# We'll write an example vignette
+writeLines({
+  '---
+title: "Generating random numbers with randomizer"
+output: rmarkdown::html_vignette
+vignette: >
+  %\\VignetteIndexEntry{Generating random numbers with randomizer}
+  %\\VignetteEngine{knitr::rmarkdown}
+  %\\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+library(randomizer)
+library(ggplot2)
+
+set.seed(123)
+random_data <- random_numbers(100, 50, 50)
+qplot(random_data, bins=30, main="Histogram of Random Numbers")
+
+```'}, "vignettes/vignette.Rmd")
+```
+
+### 2.d: readme
+
+```{r}
+# The use_readme_rmd() and use_readme_md() functions generate a 'README.Rmd' and 'README.md file respectively'.
+# usethis::use_readme_rmd()
+usethis::use_readme_md()
+```
+
+## 3: dependencies
+
+```{r}
+
+# You can add dplyr to the suggests field
+usethis::use_package("dplyr", type = "Imports")
+# You can add ggplot2 to the suggests field
+usethis::use_package("ggplot2", type = "Suggests")
+
+# Adds a dependency to the Remotes field in DESCRIPTION.
+# This is useful when you want to specify a development version of a package hosted on GitHub.
+# usethis::use_dev_package("username/repository")
+
+```
+
+## 4: Package data
+
+```{r}
+# Use use_data_raw() to create a script dedicated to generating data to be bundled with the package
+usethis::use_data_raw("my_data", open = FALSE)
+
+# Write the script to generate the data frame and save it in data-raw/my_data.R
+writeLines({'
+# Script to create and save the my_data dataset
+
+# Create the data frame
+my_data <- data.frame(
+  id = 1:5,
+  value = c(10, 20, 30, 40, 50)
+)
+
+# The use_data() function bundles the data with the package
+usethis::use_data(my_data, overwrite = TRUE)
+'}, "data-raw/my_data.R")
+
+# To actually generate and save the data, source the script
+source("data-raw/my_data.R")
+
+```
+
+## 5: Testing
+
+```{r}
+# The `use_testthat()` function sets up the testing infrastructure with the `testthat` package.
+# This function creates the `tests/testthat` directory and adds the necessary files for testing.
+usethis::use_testthat()
+
+# Creating tests for the function
+# Use the `use_test()` function to create a new test file.
+# This function creates a test script in the `tests/testthat` directory of your package.
+usethis::use_test("random_numbers")
+
+# Write your test code in the newly created `tests/testthat/test-random_numbers.R` file.
+writeLines({'
+library(testthat)
+library(randomizer)
+
+test_that("random_numbers generates correct number of values", {
+  set.seed(123)
+  result <- random_numbers(5, 1, 10)
+  expect_length(result, 5)
+})
+
+test_that("random_numbers generates values within the specified range", {
+  set.seed(123)
+  result <- random_numbers(5, 1, 10)
+  expect_true(all(result >= 1 & result <= 10))
+})
+
+test_that("random_numbers handles invalid inputs", {
+  expect_error(random_numbers(-5, 1, 10), "positive")
+  expect_error(random_numbers(5, 10, 1), "minimum value must be less than or equal to the maximum value")
+  expect_error(random_numbers("five", 1, 10), "numeric values")
+})
+'}, "tests/testthat/test-random_numbers.R")
+```
+
+## 6: Continuous integration
+
+```{r}
+# The use_github_action function configures GitHub Actions for R CMD check using a standard template.
+usethis::use_github_action("check-standard")
+
+# The use_github_action() function creates a GitHub Actions workflow file that runs test coverage checks on your package.
+usethis::use_github_action("test-coverage")
+
+```
+
+## 7: Package rendering, documenting, testing, and pushing with devtools
+
+```{r}
+
+# Re-generate documentation with `devtools::document()`. This function uses `roxygen2` to generate the documentation files (e.g., `NAMESPACE`, `.Rd` files) from the inline comments in your R scripts.
+devtools::document()
+
+# Install your package locally with `devtools::install()`.
+devtools::install()
+
+# Render the vignette with build_vignettes()
+devtools::build_vignettes()
+
+# Use devtools render() to convert the `README.Rmd` file to `README.md`.
+# rmarkdown::render("README.Rmd")
+
+# Use devtools check() to run a comprehensive check of your package locally.
+devtools::check()
+
+```
+
+##9: Other cool functions
+
+```{r}
+
+# use_version() updates to the next patch, minor, or major version (e.g., 1.0.0 to 1.0.1).
+usethis::use_version("patch")
+usethis::use_version("minor")
+usethis::use_version("major")
+
+# use_citation() generates a citation to encourage users of your package to cite an article or book.
+usethis::use_citation()
+
+# use_news_md() generates a news md file to record changes made in each version of the package, such as new features, bug fixes, and other updates.
+usethis::use_news_md()
+
+# use_code_of_conduct() adds a code of conduct to your package by creating a `CODE_OF_CONDUCT.md` file with a template code of conduct.
+usethis::use_code_of_conduct("dylcar@ceh.ac.uk")
+
+# browse_package() opens the CRAN package webpage in the default browser for quickly accessing documentation and information about a specific package.
+usethis::browse_package(package = "dplyr")
+
+# use_git_hook() adds Git hooks to your repository to enforce code standards or run tests before pushing changes, such as adding a pre-commit hook to run lintr on staged files.
+usethis::use_git_hook("pre-commit", "R -e 'lintr::lint_dir()'")
+
+# use_tidy_github() configures your repository to align with tidyverse conventions, including settings for GitHub Actions, issue templates, and labels to ensure consistency across tidyverse packages.
+usethis::use_tidy_github()
+
+# use_pkgdown_github_pages() sets up a GitHub Actions workflow to run `pkgdown` to automate the process of building and deploying a package website using `pkgdown`.
+usethis::use_pkgdown_github_pages()
+
+# use_github_links() adds GitHub links to DESCRIPTION by adding URLs for the BugReports and URL fields in the DESCRIPTION file.
+usethis::use_github_links(overwrite = TRUE)
+
+# use_roxygen_md() sets set up roxygen to use markdown syntax (bold, italics, lists, and links)
+usethis::use_roxygen_md()
+
+# install.packages() installs the styler package if you haven't already.
+install.packages("styler")
+
+# styler's style_pkg() applies styling to your entire package.
+styler::style_pkg()
+
+```
+
